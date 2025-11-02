@@ -140,21 +140,23 @@ class TrelloAssistantBot {
         // Check if this is a deep link for completing a card
         const startParam = msg.text ? msg.text.split(' ')[1] : null;
         if (startParam && startParam.startsWith('complete_')) {
+            console.log('Deep link detected:', startParam);
             const parts = startParam.replace('complete_', '').split('_');
             const cardId = parts[0];
             const listId = parts[1];
 
+            console.log('Attempting to complete card:', cardId, 'from list:', listId);
+
             try {
                 const trello = await this.getTrelloService(chatId);
-                const card = await trello.getCard(cardId);
-                const cardName = card.name.replace(/[💡📝]/g, '').trim();
 
+                // Try to archive first without fetching the card name
                 await trello.archiveCard(cardId);
-                await this.bot.sendMessage(chatId, `✅ Completed: *${cardName}*`, { parse_mode: 'Markdown' });
+                await this.bot.sendMessage(chatId, `✅ Card completed and archived!`, { parse_mode: 'Markdown' });
                 return;
             } catch (error) {
                 console.error('Error completing card:', error);
-                await this.bot.sendMessage(chatId, '❌ Failed to complete card.');
+                await this.bot.sendMessage(chatId, `❌ Failed to complete card. The card may have been deleted or you may not have access.`);
                 return;
             }
         }
