@@ -640,6 +640,11 @@ ${hasCustom ?
 
             for (let i = 0; i < cards.length; i++) {
                 const card = cards[i];
+                if (i === 0) {
+                    console.log('First card object keys:', Object.keys(card));
+                    console.log('Card ID:', card.id);
+                    console.log('Card idShort:', card.idShort);
+                }
                 const cardName = card.name.replace(/[💡📝]/g, '').trim();
                 // Escape special characters in card name for Markdown
                 const escapedCardName = cardName.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
