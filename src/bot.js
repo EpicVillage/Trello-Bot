@@ -136,7 +136,29 @@ class TrelloAssistantBot {
         const userId = msg.from.id;
         const userName = msg.from.first_name || 'there';
         const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
-        
+
+        // Check if this is a deep link for completing a card
+        const startParam = msg.text ? msg.text.split(' ')[1] : null;
+        if (startParam && startParam.startsWith('complete_')) {
+            const parts = startParam.replace('complete_', '').split('_');
+            const cardId = parts[0];
+            const listId = parts[1];
+
+            try {
+                const trello = await this.getTrelloService(chatId);
+                const card = await trello.getCard(cardId);
+                const cardName = card.name.replace(/[💡📝]/g, '').trim();
+
+                await trello.archiveCard(cardId);
+                await this.bot.sendMessage(chatId, `✅ Completed: *${cardName}*`, { parse_mode: 'Markdown' });
+                return;
+            } catch (error) {
+                console.error('Error completing card:', error);
+                await this.bot.sendMessage(chatId, '❌ Failed to complete card.');
+                return;
+            }
+        }
+
         const isAuthorized = await this.auth.isAuthorized(msg);
         const isAdmin = this.auth.isAdmin(userId);
         
@@ -644,7 +666,16 @@ ${hasCustom ?
                         messageText += formattedDesc;
                     }
                 }
-                
+
+                // Add Trello link and complete link as text
+                if (card.url) {
+                    const escapedUrl = card.url.replace(/_/g, '\\_');
+                    messageText += `   [View in Trello](${escapedUrl}) | `;
+                }
+
+                // Add completion link using proper deep link format
+                messageText += `[✅ Complete](https://t.me/${this.botUsername}?start=complete_${card.id}_${listId})\n`;
+
                 messageText += '\n';  // Add spacing between cards
 
                 // Check message length to avoid Telegram limits
@@ -659,26 +690,11 @@ ${hasCustom ?
                 messageText += `\n_Note: ${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`;
             }
 
-            // Create inline keyboard with card links and completion buttons
-            const keyboard = {
-                inline_keyboard: cards.map(card => [
-                    {
-                        text: '🔗 View',
-                        url: card.url
-                    },
-                    {
-                        text: '✅ Complete',
-                        callback_data: `complete_card:${card.id}:${listId}`
-                    }
-                ])
-            };
-
             await this.bot.editMessageText(messageText, {
                 chat_id: chatId,
                 message_id: messageId,
                 parse_mode: 'Markdown',
-                disable_web_page_preview: true,
-                reply_markup: keyboard
+                disable_web_page_preview: true
             });
 
             await this.bot.answerCallbackQuery(query.id, { text: 'Cards loaded!' });
