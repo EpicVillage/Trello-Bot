@@ -142,13 +142,17 @@ class TrelloAssistantBot {
         const startParam = msg.text ? msg.text.split(' ')[1] : null;
         console.log('Start parameter:', startParam);
 
-        if (startParam && startParam.startsWith('complete_')) {
-            console.log('Deep link detected:', startParam);
-            const parts = startParam.replace('complete_', '').split('_');
+        if (startParam && startParam.startsWith('comp_')) {
+            console.log('Deep link detected (base64):', startParam);
+            // Decode base64 payload
+            const payload = startParam.replace('comp_', '');
+            const decoded = Buffer.from(payload, 'base64').toString('utf-8');
+            console.log('Decoded payload:', decoded);
+            const parts = decoded.split('|');
             console.log('Parsed parts:', parts);
             const cardId = parts[0];
             const listId = parts[1];
-            const originalChatId = parts[2] || chatId; // Get original chat ID if provided
+            const originalChatId = parts[2] || chatId;
 
             console.log('Attempting to complete card:', cardId, 'from list:', listId, 'original chat:', originalChatId);
 
@@ -702,10 +706,13 @@ ${hasCustom ?
                 }
 
                 // Add completion link using proper deep link format with chat ID
-                const completeLink = `https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId}`;
+                // Use base64 encoding to make the link more compact and avoid issues with special characters
+                const payload = Buffer.from(`${card.id}|${listId}|${chatId}`).toString('base64').replace(/=/g, '');
+                const completeLink = `https://t.me/${this.botUsername}?start=comp_${payload}`;
                 if (i === 0) {
                     console.log('Sample complete link (handleViewListCards):', completeLink);
                     console.log('Bot username:', this.botUsername);
+                    console.log('Original data:', `${card.id}|${listId}|${chatId}`);
                 }
                 messageText += `[✅ Complete](${completeLink})\n`;
 
@@ -1793,7 +1800,9 @@ ${hasCustom ?
                 }
 
                 // Add completion link using proper deep link format with chat ID
-                const completeLink = `https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId}`;
+                // Use base64 encoding to make the link more compact and avoid issues with special characters
+                const payload = Buffer.from(`${card.id}|${listId}|${chatId}`).toString('base64').replace(/=/g, '');
+                const completeLink = `https://t.me/${this.botUsername}?start=comp_${payload}`;
                 if (i === 0) {
                     console.log('Sample complete link (sendUpdatedCardList):', completeLink);
                 }
