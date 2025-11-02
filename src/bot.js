@@ -144,15 +144,26 @@ class TrelloAssistantBot {
             const parts = startParam.replace('complete_', '').split('_');
             const cardId = parts[0];
             const listId = parts[1];
+            const originalChatId = parts[2] || chatId; // Get original chat ID if provided
 
             console.log('Attempting to complete card:', cardId, 'from list:', listId);
 
             try {
-                const trello = await this.getTrelloService(chatId);
+                const trello = await this.getTrelloService(originalChatId);
 
-                // Try to archive first without fetching the card name
+                // Get card name before archiving
+                const card = await trello.getCard(cardId);
+                const cardName = card.name.replace(/[💡📝]/g, '').trim();
+
+                // Archive the card
                 await trello.archiveCard(cardId);
-                await this.bot.sendMessage(chatId, `✅ Card completed and archived!`, { parse_mode: 'Markdown' });
+
+                // Send success message to the chat where the action was initiated
+                await this.bot.sendMessage(chatId, `✅ Card completed: *${cardName.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&')}*`, { parse_mode: 'Markdown' });
+
+                // Send updated list to the original chat (if different from current chat)
+                await this.sendUpdatedCardList(originalChatId, listId);
+
                 return;
             } catch (error) {
                 console.error('Error completing card:', error);
@@ -590,21 +601,21 @@ ${hasCustom ?
     async handleViewListCards(query, listId) {
         const chatId = query.message.chat.id;
         const messageId = query.message.message_id;
-        
+
         try {
             const trello = await this.getTrelloService(chatId);
             // Get active cards (excluding completed)
             const cards = await trello.getListCards(listId, false);
-            
+
             // Also get all cards to count completed ones
             const allCards = await trello.getListCards(listId, true);
             const completedCount = allCards.filter(card => card.dueComplete === true).length;
-            
+
             if (cards.length === 0) {
-                const emptyMessage = completedCount > 0 
+                const emptyMessage = completedCount > 0
                     ? `📭 No active cards in this list.\n\n_${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`
                     : '📭 No cards found in this list.';
-                    
+
                 await this.bot.editMessageText(emptyMessage, {
                     chat_id: chatId,
                     message_id: messageId,
@@ -613,37 +624,37 @@ ${hasCustom ?
                 await this.bot.answerCallbackQuery(query.id, { text: 'No active cards' });
                 return;
             }
-            
+
             // Format cards with descriptions
             let messageText = '📋 *Cards in selected list:*\n\n';
-            
+
             for (let i = 0; i < cards.length; i++) {
                 const card = cards[i];
                 const cardName = card.name.replace(/[💡📝]/g, '').trim();
                 // Escape special characters in card name for Markdown
                 const escapedCardName = cardName.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
-                
+
                 // Add card number and name
                 messageText += `*${i + 1}. ${escapedCardName}*\n`;
-                
+
                 // Add description if it exists
                 if (card.desc && card.desc.trim()) {
                     const descLines = card.desc.split('\n');
                     let formattedDesc = '';
-                    
+
                     // Process description lines, filtering out old metadata
                     for (const line of descLines) {
                         const trimmedLine = line.trim();
-                        
+
                         // Skip old metadata lines
-                        if (trimmedLine.startsWith('Added by:') || 
-                            trimmedLine.startsWith('From:') || 
+                        if (trimmedLine.startsWith('Added by:') ||
+                            trimmedLine.startsWith('From:') ||
                             trimmedLine.startsWith('Date:') ||
                             trimmedLine.startsWith('User:') ||
                             trimmedLine.startsWith('Chat:')) {
                             continue;
                         }
-                        
+
                         // Process valid content lines
                         if (trimmedLine.startsWith('Details:')) {
                             formattedDesc += '   📝 _Details:_\n';
@@ -663,7 +674,7 @@ ${hasCustom ?
                             formattedDesc += `   ${escapedLine}\n`;
                         }
                     }
-                    
+
                     if (formattedDesc) {
                         messageText += formattedDesc;
                     }
@@ -675,8 +686,8 @@ ${hasCustom ?
                     messageText += `   [View in Trello](${escapedUrl}) | `;
                 }
 
-                // Add completion link using proper deep link format
-                messageText += `[✅ Complete](https://t.me/${this.botUsername}?start=complete_${card.id}_${listId})\n`;
+                // Add completion link using proper deep link format with chat ID
+                messageText += `[✅ Complete](https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId})\n`;
 
                 messageText += '\n';  // Add spacing between cards
 
@@ -1678,6 +1689,115 @@ ${hasCustom ?
                     });
             }
         }, 30000);
+    }
+
+    async sendUpdatedCardList(chatId, listId) {
+        try {
+            const trello = await this.getTrelloService(chatId);
+
+            // Get active cards (excluding completed)
+            const cards = await trello.getListCards(listId, false);
+
+            // Also get all cards to count completed ones
+            const allCards = await trello.getListCards(listId, true);
+            const completedCount = allCards.filter(card => card.dueComplete === true).length;
+
+            if (cards.length === 0) {
+                const emptyMessage = completedCount > 0
+                    ? `📭 No active cards in this list.\n\n_${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`
+                    : '📭 No cards found in this list.';
+
+                await this.bot.sendMessage(chatId, emptyMessage, { parse_mode: 'Markdown' });
+                return;
+            }
+
+            // Format cards with descriptions
+            let messageText = '📋 *Updated card list:*\n\n';
+
+            for (let i = 0; i < cards.length; i++) {
+                const card = cards[i];
+                const cardName = card.name.replace(/[💡📝]/g, '').trim();
+                // Escape special characters in card name for Markdown
+                const escapedCardName = cardName.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+
+                // Add card number and name
+                messageText += `*${i + 1}. ${escapedCardName}*\n`;
+
+                // Add description if it exists
+                if (card.desc && card.desc.trim()) {
+                    const descLines = card.desc.split('\n');
+                    let formattedDesc = '';
+
+                    // Process description lines, filtering out old metadata
+                    for (const line of descLines) {
+                        const trimmedLine = line.trim();
+
+                        // Skip old metadata lines
+                        if (trimmedLine.startsWith('Added by:') ||
+                            trimmedLine.startsWith('From:') ||
+                            trimmedLine.startsWith('Date:') ||
+                            trimmedLine.startsWith('User:') ||
+                            trimmedLine.startsWith('Chat:')) {
+                            continue;
+                        }
+
+                        // Process valid content lines
+                        if (trimmedLine.startsWith('Details:')) {
+                            formattedDesc += '   📝 _Details:_\n';
+                        } else if (trimmedLine.startsWith('Links:')) {
+                            formattedDesc += '   🔗 _Links:_\n';
+                        } else if (trimmedLine.startsWith('-')) {
+                            // Format list items with indentation, escaping URLs if present
+                            const escapedLine = trimmedLine.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+                                return url.replace(/_/g, '\\_');
+                            });
+                            formattedDesc += `   ${escapedLine}\n`;
+                        } else if (trimmedLine) {
+                            // Escape URLs in regular lines
+                            const escapedLine = trimmedLine.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+                                return url.replace(/_/g, '\\_');
+                            });
+                            formattedDesc += `   ${escapedLine}\n`;
+                        }
+                    }
+
+                    if (formattedDesc) {
+                        messageText += formattedDesc;
+                    }
+                }
+
+                // Add Trello link and complete link as text
+                if (card.url) {
+                    const escapedUrl = card.url.replace(/_/g, '\\_');
+                    messageText += `   [View in Trello](${escapedUrl}) | `;
+                }
+
+                // Add completion link using proper deep link format with chat ID
+                messageText += `[✅ Complete](https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId})\n`;
+
+                messageText += '\n';  // Add spacing between cards
+
+                // Check message length to avoid Telegram limits
+                if (messageText.length > 3000) {
+                    messageText += `_...and ${cards.length - i - 1} more cards_`;
+                    break;
+                }
+            }
+
+            // Add note about hidden completed cards
+            if (completedCount > 0) {
+                messageText += `\n_Note: ${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`;
+            }
+
+            await this.bot.sendMessage(chatId, messageText, {
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true
+            });
+
+        } catch (error) {
+            console.error('Error sending updated card list:', error);
+            await this.bot.sendMessage(chatId, '❌ Failed to load updated card list.');
+        }
     }
 
     stop() {
