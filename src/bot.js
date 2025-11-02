@@ -645,32 +645,32 @@ ${hasCustom ?
                     }
                 }
                 
-                // Add URL link if available
-                if (card.url) {
-                    const escapedUrl = card.url.replace(/_/g, '\\_');
-                    messageText += `   [View in Trello](${escapedUrl})\n`;
-                }
-                
                 messageText += '\n';  // Add spacing between cards
-                
+
                 // Check message length to avoid Telegram limits
                 if (messageText.length > 3000) {
                     messageText += `_...and ${cards.length - i - 1} more cards_`;
                     break;
                 }
             }
-            
+
             // Add note about hidden completed cards
             if (completedCount > 0) {
                 messageText += `\n_Note: ${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`;
             }
 
-            // Create inline keyboard with tick buttons for each card
+            // Create inline keyboard with card links and completion buttons
             const keyboard = {
-                inline_keyboard: cards.map(card => [{
-                    text: `✅ ${card.name.replace(/[💡📝]/g, '').trim().substring(0, 30)}${card.name.length > 30 ? '...' : ''}`,
-                    callback_data: `complete_card:${card.id}:${listId}`
-                }])
+                inline_keyboard: cards.map(card => [
+                    {
+                        text: '🔗 View',
+                        url: card.url
+                    },
+                    {
+                        text: '✅ Complete',
+                        callback_data: `complete_card:${card.id}:${listId}`
+                    }
+                ])
             };
 
             await this.bot.editMessageText(messageText, {
