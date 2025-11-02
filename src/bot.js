@@ -868,32 +868,46 @@ ${hasCustom ?
         const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
         const sessionKey = isGroup ? `group_${chatId}` : userId.toString();
 
-        // Parse credentials
+        // Parse credentials - handle multiple formats
         const lines = text.split('\n').map(line => line.trim());
         let apiKey = null;
         let token = null;
 
         for (const line of lines) {
-            if (line.startsWith('API_KEY:')) {
-                apiKey = line.replace('API_KEY:', '').trim();
-            } else if (line.startsWith('TOKEN:')) {
-                token = line.replace('TOKEN:', '').trim();
+            // Try different separators: colon, space, equals
+            const apiKeyMatch = line.match(/API[_\s-]?KEY\s*[:=]?\s*(.+)/i);
+            const tokenMatch = line.match(/TOKEN\s*[:=]?\s*(.+)/i);
+
+            if (apiKeyMatch) {
+                apiKey = apiKeyMatch[1].trim();
+            } else if (tokenMatch) {
+                token = tokenMatch[1].trim();
             }
         }
 
         if (!apiKey || !token) {
             return this.bot.sendMessage(chatId,
-                '❌ Invalid format. Please provide both API_KEY and TOKEN in the correct format:\n\n' +
-                '```\nAPI_KEY:your_key\nTOKEN:your_token\n```',
+                '❌ Invalid format. Please provide both API_KEY and TOKEN.\n\n' +
+                'Format 1:\n```\nAPI_KEY:your_key\nTOKEN:your_token\n```\n' +
+                'Format 2:\n```\nAPI_KEY your_key\nTOKEN your_token\n```',
                 { parse_mode: 'Markdown' });
         }
+
+        // Log for debugging (first/last chars only for security)
+        console.log(`Validating credentials - API Key: ${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}, Token: ${token.substring(0, 5)}...${token.substring(token.length - 5)}`);
 
         // Validate credentials
         const validation = await this.tokenManager.validateToken(apiKey, token);
 
         if (!validation.valid) {
             return this.bot.sendMessage(chatId,
-                `❌ Invalid credentials: ${validation.error}\n\nPlease check your API key and token and try again.`);
+                `❌ Invalid credentials: ${validation.error}\n\n` +
+                `API Key length: ${apiKey.length} chars\n` +
+                `Token length: ${token.length} chars\n\n` +
+                `Please ensure:\n` +
+                `1. No extra spaces in the credentials\n` +
+                `2. Complete API key and token copied\n` +
+                `3. Credentials are from https://trello.com/app-key`);
         }
 
         // Save token for this chat
