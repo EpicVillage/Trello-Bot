@@ -865,12 +865,14 @@ ${hasCustom ?
         const chatId = msg.chat.id;
         const userId = msg.from.id;
         const text = msg.text.trim();
-        
+        const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+        const sessionKey = isGroup ? `group_${chatId}` : userId.toString();
+
         // Parse credentials
         const lines = text.split('\n').map(line => line.trim());
         let apiKey = null;
         let token = null;
-        
+
         for (const line of lines) {
             if (line.startsWith('API_KEY:')) {
                 apiKey = line.replace('API_KEY:', '').trim();
@@ -878,32 +880,32 @@ ${hasCustom ?
                 token = line.replace('TOKEN:', '').trim();
             }
         }
-        
+
         if (!apiKey || !token) {
-            return this.bot.sendMessage(chatId, 
+            return this.bot.sendMessage(chatId,
                 '❌ Invalid format. Please provide both API_KEY and TOKEN in the correct format:\n\n' +
                 '```\nAPI_KEY:your_key\nTOKEN:your_token\n```',
                 { parse_mode: 'Markdown' });
         }
-        
+
         // Validate credentials
         const validation = await this.tokenManager.validateToken(apiKey, token);
-        
+
         if (!validation.valid) {
-            return this.bot.sendMessage(chatId, 
+            return this.bot.sendMessage(chatId,
                 `❌ Invalid credentials: ${validation.error}\n\nPlease check your API key and token and try again.`);
         }
-        
+
         // Save token for this chat
         await this.tokenManager.setToken(
-            chatId, 
-            token, 
-            apiKey, 
+            chatId,
+            token,
+            apiKey,
             validation.fullName || validation.username || 'Custom Workspace'
         );
-        
-        // Clear the session
-        this.userSessions.delete(userId);
+
+        // Clear the session using the correct key
+        this.userSessions.delete(sessionKey);
         
         // Clear cached services to force reload
         this.trelloServices.clear();
@@ -1319,9 +1321,13 @@ Active Users: ${stats.totalUsers || 0}
     async handleSetWorkspace(msg) {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
-        
+        const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+
+        // Use consistent session key
+        const sessionKey = isGroup ? `group_${chatId}` : userId.toString();
+
         // Start workspace setup session
-        this.userSessions.set(userId, {
+        this.userSessions.set(sessionKey, {
             step: 'waiting_for_credentials',
             type: 'setworkspace',
             chatId: chatId
