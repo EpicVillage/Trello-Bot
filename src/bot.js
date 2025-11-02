@@ -33,6 +33,7 @@ class TrelloAssistantBot {
         
         this.userSessions = new Map();
         this.trelloServices = new Map();
+        this.lastCardListMessages = new Map(); // Store last card list message ID per chat
         this.retryCount = 0;
         this.maxRetries = 5;
         this.retryDelay = 5000;
@@ -730,6 +731,9 @@ ${hasCustom ?
                 parse_mode: 'Markdown',
                 disable_web_page_preview: true
             });
+
+            // Store this message ID for future deletion when updated
+            this.lastCardListMessages.set(chatId, messageId);
 
             await this.bot.answerCallbackQuery(query.id, { text: 'Cards loaded!' });
 
@@ -1714,6 +1718,17 @@ ${hasCustom ?
 
     async sendUpdatedCardList(chatId, listId) {
         try {
+            // Delete the old card list message if it exists
+            const oldMessageId = this.lastCardListMessages.get(chatId);
+            if (oldMessageId) {
+                try {
+                    await this.bot.deleteMessage(chatId, oldMessageId);
+                    console.log('Deleted old card list message:', oldMessageId);
+                } catch (error) {
+                    console.log('Could not delete old message (may be already deleted):', error.message);
+                }
+            }
+
             const trello = await this.getTrelloService(chatId);
 
             // Get active cards (excluding completed)
@@ -1728,7 +1743,8 @@ ${hasCustom ?
                     ? `📭 No active cards in this list.\n\n_${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`
                     : '📭 No cards found in this list.';
 
-                await this.bot.sendMessage(chatId, emptyMessage, { parse_mode: 'Markdown' });
+                const sentMsg = await this.bot.sendMessage(chatId, emptyMessage, { parse_mode: 'Markdown' });
+                this.lastCardListMessages.set(chatId, sentMsg.message_id);
                 return;
             }
 
@@ -1814,10 +1830,14 @@ ${hasCustom ?
                 messageText += `\n_Note: ${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`;
             }
 
-            await this.bot.sendMessage(chatId, messageText, {
+            const sentMsg = await this.bot.sendMessage(chatId, messageText, {
                 parse_mode: 'Markdown',
                 disable_web_page_preview: true
             });
+
+            // Store the new message ID for future deletion
+            this.lastCardListMessages.set(chatId, sentMsg.message_id);
+            console.log('Stored new card list message ID:', sentMsg.message_id);
 
         } catch (error) {
             console.error('Error sending updated card list:', error);
