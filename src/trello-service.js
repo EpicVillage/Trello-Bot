@@ -137,7 +137,8 @@ class TrelloService {
             // Make sure cardId is a string, not an object
             const id = typeof cardId === 'object' ? cardId.id : cardId;
             console.log('Fetching card with ID:', id);
-            const card = await this.trello.getCard(id);
+            // Use makeRequest directly since getCard has issues
+            const card = await this.trello.makeRequest('get', `/1/cards/${id}`);
             return card;
         } catch (error) {
             console.error('Error fetching card:', error);
