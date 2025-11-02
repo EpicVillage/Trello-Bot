@@ -869,10 +869,11 @@ ${hasCustom ?
         const sessionKey = isGroup ? `group_${chatId}` : userId.toString();
 
         // Parse credentials - handle multiple formats
-        const lines = text.split('\n').map(line => line.trim());
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         let apiKey = null;
         let token = null;
 
+        // Try labeled format first
         for (const line of lines) {
             // Try different separators: colon, space, equals
             const apiKeyMatch = line.match(/API[_\s-]?KEY\s*[:=]?\s*(.+)/i);
@@ -885,11 +886,17 @@ ${hasCustom ?
             }
         }
 
+        // If not found, try simple two-line format (API key on first line, token on second)
+        if (!apiKey && !token && lines.length === 2) {
+            apiKey = lines[0].trim();
+            token = lines[1].trim();
+        }
+
         if (!apiKey || !token) {
             return this.bot.sendMessage(chatId,
                 '❌ Invalid format. Please provide both API_KEY and TOKEN.\n\n' +
-                'Format 1:\n```\nAPI_KEY:your_key\nTOKEN:your_token\n```\n' +
-                'Format 2:\n```\nAPI_KEY your_key\nTOKEN your_token\n```',
+                '**Easiest format** (just paste the values):\n```\nyour_api_key_here\nyour_token_here\n```\n\n' +
+                'Or with labels:\n```\nAPI_KEY:your_key\nTOKEN:your_token\n```',
                 { parse_mode: 'Markdown' });
         }
 
@@ -1359,17 +1366,23 @@ To use your own Trello workspace in this chat, follow these steps:
 
 *Step 2: Get your Token*
 1. On the same page, click the *Token* link
-2. Click "Allow" 
+2. Click "Allow"
 3. Copy the *Token* (long string)
 
 *Step 3: Send me your credentials*
-Reply with your credentials in this format:
+Reply with BOTH on separate lines (easiest):
+\`\`\`
+your_api_key_here
+your_token_here
+\`\`\`
+
+Or with labels:
 \`\`\`
 API_KEY:your_api_key_here
 TOKEN:your_token_here
 \`\`\`
 
-Or type /cancel to abort.
+Type /cancel to abort.
         `;
         
         await this.bot.sendMessage(chatId, instructions, { parse_mode: 'Markdown' });
