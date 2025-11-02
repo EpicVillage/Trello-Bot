@@ -132,6 +132,7 @@ class TrelloAssistantBot {
     }
 
     async handleStart(msg) {
+        console.log('handleStart called with message:', msg.text);
         const chatId = msg.chat.id;
         const userId = msg.from.id;
         const userName = msg.from.first_name || 'there';
@@ -139,34 +140,43 @@ class TrelloAssistantBot {
 
         // Check if this is a deep link for completing a card
         const startParam = msg.text ? msg.text.split(' ')[1] : null;
+        console.log('Start parameter:', startParam);
+
         if (startParam && startParam.startsWith('complete_')) {
             console.log('Deep link detected:', startParam);
             const parts = startParam.replace('complete_', '').split('_');
+            console.log('Parsed parts:', parts);
             const cardId = parts[0];
             const listId = parts[1];
             const originalChatId = parts[2] || chatId; // Get original chat ID if provided
 
-            console.log('Attempting to complete card:', cardId, 'from list:', listId);
+            console.log('Attempting to complete card:', cardId, 'from list:', listId, 'original chat:', originalChatId);
 
             try {
                 const trello = await this.getTrelloService(originalChatId);
 
                 // Get card name before archiving
+                console.log('Fetching card details...');
                 const card = await trello.getCard(cardId);
                 const cardName = card.name.replace(/[💡📝]/g, '').trim();
+                console.log('Card name:', cardName);
 
                 // Archive the card
+                console.log('Archiving card...');
                 await trello.archiveCard(cardId);
+                console.log('Card archived successfully');
 
                 // Send success message to the chat where the action was initiated
                 await this.bot.sendMessage(chatId, `✅ Card completed: *${cardName.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&')}*`, { parse_mode: 'Markdown' });
 
                 // Send updated list to the original chat (if different from current chat)
+                console.log('Sending updated card list to chat:', originalChatId);
                 await this.sendUpdatedCardList(originalChatId, listId);
 
                 return;
             } catch (error) {
                 console.error('Error completing card:', error);
+                console.error('Error stack:', error.stack);
                 await this.bot.sendMessage(chatId, `❌ Failed to complete card. The card may have been deleted or you may not have access.`);
                 return;
             }
@@ -687,7 +697,12 @@ ${hasCustom ?
                 }
 
                 // Add completion link using proper deep link format with chat ID
-                messageText += `[✅ Complete](https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId})\n`;
+                const completeLink = `https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId}`;
+                if (i === 0) {
+                    console.log('Sample complete link (handleViewListCards):', completeLink);
+                    console.log('Bot username:', this.botUsername);
+                }
+                messageText += `[✅ Complete](${completeLink})\n`;
 
                 messageText += '\n';  // Add spacing between cards
 
@@ -1773,7 +1788,11 @@ ${hasCustom ?
                 }
 
                 // Add completion link using proper deep link format with chat ID
-                messageText += `[✅ Complete](https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId})\n`;
+                const completeLink = `https://t.me/${this.botUsername}?start=complete_${card.id}_${listId}_${chatId}`;
+                if (i === 0) {
+                    console.log('Sample complete link (sendUpdatedCardList):', completeLink);
+                }
+                messageText += `[✅ Complete](${completeLink})\n`;
 
                 messageText += '\n';  // Add spacing between cards
 
