@@ -491,28 +491,34 @@ ${hasCustom ?
     async handleCallbackQuery(query) {
         const chatId = query.message.chat.id;
         const messageId = query.message.message_id;
-        const [action, value] = query.data.split(':');
-        
+        const dataParts = query.data.split(':');
+        const action = dataParts[0];
+        const value = dataParts[1];
+
         try {
             switch (action) {
                 case 'select_board':
                     await this.selectBoard(chatId, value, messageId);
                     await this.bot.answerCallbackQuery(query.id, { text: 'Board selected!' });
                     break;
-                    
+
                 case 'select_list':
                     await this.selectList(chatId, value, messageId);
                     await this.bot.answerCallbackQuery(query.id, { text: 'Default list set!' });
                     break;
-                    
+
                 case 'idea_list':
                     await this.handleIdeaListSelection(query, value);
                     break;
-                    
+
                 case 'view_list_cards':
                     await this.handleViewListCards(query, value);
                     break;
-                    
+
+                case 'complete_card':
+                    await this.handleCompleteCard(query, value, dataParts[2]);
+                    break;
+
                 default:
                     await this.bot.answerCallbackQuery(query.id);
             }
@@ -658,16 +664,25 @@ ${hasCustom ?
             if (completedCount > 0) {
                 messageText += `\n_Note: ${completedCount} completed card${completedCount > 1 ? 's' : ''} hidden_`;
             }
-            
+
+            // Create inline keyboard with tick buttons for each card
+            const keyboard = {
+                inline_keyboard: cards.map(card => [{
+                    text: `✅ ${card.name.replace(/[💡📝]/g, '').trim().substring(0, 30)}${card.name.length > 30 ? '...' : ''}`,
+                    callback_data: `complete_card:${card.id}:${listId}`
+                }])
+            };
+
             await this.bot.editMessageText(messageText, {
                 chat_id: chatId,
                 message_id: messageId,
                 parse_mode: 'Markdown',
-                disable_web_page_preview: true
+                disable_web_page_preview: true,
+                reply_markup: keyboard
             });
-            
+
             await this.bot.answerCallbackQuery(query.id, { text: 'Cards loaded!' });
-            
+
         } catch (error) {
             console.error('Error viewing list cards:', error);
             await this.bot.answerCallbackQuery(query.id, { text: 'Failed to load cards' });
@@ -677,7 +692,39 @@ ${hasCustom ?
             });
         }
     }
-    
+
+    async handleCompleteCard(query, cardId, listId) {
+        const chatId = query.message.chat.id;
+        const messageId = query.message.message_id;
+
+        try {
+            const trello = await this.getTrelloService(chatId);
+
+            // Get card name before archiving for confirmation message
+            const card = await trello.getCard(cardId);
+            const cardName = card.name.replace(/[💡📝]/g, '').trim();
+
+            // Archive the card
+            await trello.archiveCard(cardId);
+
+            // Show success notification
+            await this.bot.answerCallbackQuery(query.id, {
+                text: `✅ Completed: ${cardName.substring(0, 30)}${cardName.length > 30 ? '...' : ''}`,
+                show_alert: false
+            });
+
+            // Reload the list view to show updated cards
+            await this.handleViewListCards(query, listId);
+
+        } catch (error) {
+            console.error('Error completing card:', error);
+            await this.bot.answerCallbackQuery(query.id, {
+                text: '❌ Failed to complete card',
+                show_alert: true
+            });
+        }
+    }
+
     async handleIdeaListSelection(query, listId) {
         const userId = query.from.id;
         const chatId = query.message.chat.id;

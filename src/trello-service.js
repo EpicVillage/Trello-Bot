@@ -191,6 +191,16 @@ class TrelloService {
         }
     }
 
+    async archiveCard(cardId) {
+        try {
+            const result = await this.trello.updateCard(cardId, 'closed', true);
+            return result;
+        } catch (error) {
+            console.error('Error archiving card:', error);
+            throw new Error('Failed to archive card');
+        }
+    }
+
     clearCache() {
         this.cache = {
             boards: null,
