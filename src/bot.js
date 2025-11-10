@@ -175,6 +175,14 @@ class TrelloAssistantBot {
                 console.log('Sending updated card list to chat:', originalChatId);
                 await this.sendUpdatedCardList(originalChatId, listId);
 
+                // Delete the /start message
+                try {
+                    await this.bot.deleteMessage(chatId, msg.message_id);
+                    console.log('Deleted /start message:', msg.message_id);
+                } catch (error) {
+                    console.log('Could not delete /start message:', error.message);
+                }
+
                 return;
             } catch (error) {
                 console.error('Error completing card:', error);
@@ -258,7 +266,8 @@ Contact the bot admin for immediate access.
 
 *Workspace Management:*
 /workspace - View current workspace
-${hasCustom ? '/removeworkspace - Remove custom workspace' : '/setworkspace - Use your own Trello account'}
+/setworkspace - Use your own Trello account
+${hasCustom ? '/removeworkspace - Remove custom workspace' : ''}
 
 *Capture Ideas:*
 /idea [text] - Quick capture an idea
