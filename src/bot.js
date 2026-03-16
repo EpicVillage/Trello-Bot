@@ -65,59 +65,59 @@ class TrelloAssistantBot {
         });
         
         // Basic commands (no auth required for start)
-        this.bot.onText(/\/start/, async (msg) => {
+        this.bot.onText(/^\/start/, async (msg) => {
             try {
                 await this.handleStart(msg);
             } catch (error) {
                 await ErrorHandler.sendError(this.bot, msg.chat.id, error, 'handleStart');
             }
         });
-        
-        this.bot.onText(/\/trellohelp/, (msg) => this.withAuth(msg, async () => {
+
+        this.bot.onText(/^\/trellohelp/, (msg) => this.withAuth(msg, async () => {
             try {
                 await this.handleHelp(msg);
             } catch (error) {
                 await ErrorHandler.sendError(this.bot, msg.chat.id, error, 'handleHelp');
             }
         }));
-        
+
         // Authorization commands
-        this.bot.onText(/\/request/, (msg) => this.handleRequestAccess(msg));
-        this.bot.onText(/\/authorize (.+)/, (msg, match) => this.handleAuthorize(msg, match[1]));
-        this.bot.onText(/\/unauthorize (.+)/, (msg, match) => this.handleUnauthorize(msg, match[1]));
-        this.bot.onText(/\/requests/, (msg) => this.handleViewRequests(msg));
-        this.bot.onText(/\/authorized/, (msg) => this.handleViewAuthorized(msg));
-        
+        this.bot.onText(/^\/request/, (msg) => this.handleRequestAccess(msg));
+        this.bot.onText(/^\/authorize (.+)/, (msg, match) => this.handleAuthorize(msg, match[1]));
+        this.bot.onText(/^\/unauthorize (.+)/, (msg, match) => this.handleUnauthorize(msg, match[1]));
+        this.bot.onText(/^\/requests/, (msg) => this.handleViewRequests(msg));
+        this.bot.onText(/^\/authorized/, (msg) => this.handleViewAuthorized(msg));
+
         // Workspace commands
-        this.bot.onText(/\/setworkspace/, (msg) => this.withAuth(msg, () => this.handleSetWorkspace(msg)));
-        this.bot.onText(/\/removeworkspace/, (msg) => this.withAuth(msg, () => this.handleRemoveWorkspace(msg)));
-        this.bot.onText(/\/workspace/, (msg) => this.withAuth(msg, () => this.handleViewWorkspace(msg)));
-        
+        this.bot.onText(/^\/setworkspace/, (msg) => this.withAuth(msg, () => this.handleSetWorkspace(msg)));
+        this.bot.onText(/^\/removeworkspace/, (msg) => this.withAuth(msg, () => this.handleRemoveWorkspace(msg)));
+        this.bot.onText(/^\/workspace/, (msg) => this.withAuth(msg, () => this.handleViewWorkspace(msg)));
+
         // Idea capture commands (require auth)
-        this.bot.onText(/\/idea (.+)/, (msg, match) => this.withAuth(msg, () => this.handleQuickIdea(msg, match[1])));
-        this.bot.onText(/\/task (.+)/, (msg, match) => this.withAuth(msg, () => this.handleQuickTask(msg, match[1])));
-        this.bot.onText(/\/addidea/, (msg) => this.withAuth(msg, () => this.handleInteractiveIdea(msg)));
-        
+        this.bot.onText(/^\/idea (.+)/, (msg, match) => this.withAuth(msg, () => this.handleQuickIdea(msg, match[1])));
+        this.bot.onText(/^\/task (.+)/, (msg, match) => this.withAuth(msg, () => this.handleQuickTask(msg, match[1])));
+        this.bot.onText(/^\/addidea/, (msg) => this.withAuth(msg, () => this.handleInteractiveIdea(msg)));
+
         // Trello management (require auth)
-        this.bot.onText(/\/boards/, (msg) => this.withAuth(msg, () => this.handleListBoards(msg)));
-        this.bot.onText(/\/lists/, (msg) => this.withAuth(msg, () => this.handleListLists(msg)));
+        this.bot.onText(/^\/boards/, (msg) => this.withAuth(msg, () => this.handleListBoards(msg)));
+        this.bot.onText(/^\/lists/, (msg) => this.withAuth(msg, () => this.handleListLists(msg)));
         this.bot.onText(/^\/view$/, (msg) => this.withAuth(msg, () => this.handleViewCards(msg)));
-        
+
         // Advanced features (require auth)
-        this.bot.onText(/\/assign/, (msg) => this.withAuth(msg, () => this.handleAssignCard(msg)));
-        this.bot.onText(/\/label/, (msg) => this.withAuth(msg, () => this.handleLabelCard(msg)));
-        this.bot.onText(/\/search (.+)/, (msg, match) => this.withAuth(msg, () => this.handleSearchCards(msg, match[1])));
-        
+        this.bot.onText(/^\/assign/, (msg) => this.withAuth(msg, () => this.handleAssignCard(msg)));
+        this.bot.onText(/^\/label/, (msg) => this.withAuth(msg, () => this.handleLabelCard(msg)));
+        this.bot.onText(/^\/search (.+)/, (msg, match) => this.withAuth(msg, () => this.handleSearchCards(msg, match[1])));
+
         // Admin commands
-        this.bot.onText(/\/settings/, (msg) => this.handleSettings(msg));
-        this.bot.onText(/\/stats/, (msg) => this.handleStats(msg));
-        this.bot.onText(/\/clearboard/, (msg) => this.handleClearBoard(msg));
-        
+        this.bot.onText(/^\/settings/, (msg) => this.handleSettings(msg));
+        this.bot.onText(/^\/stats/, (msg) => this.handleStats(msg));
+        this.bot.onText(/^\/clearboard/, (msg) => this.handleClearBoard(msg));
+
         // Status command (require auth)
-        this.bot.onText(/\/status/, (msg) => this.withAuth(msg, () => this.handleStatus(msg)));
-        
+        this.bot.onText(/^\/status/, (msg) => this.withAuth(msg, () => this.handleStatus(msg)));
+
         // Network status command (admin only)
-        this.bot.onText(/\/network/, (msg) => this.handleNetworkStatus(msg));
+        this.bot.onText(/^\/network/, (msg) => this.handleNetworkStatus(msg));
         
         // Callback queries for inline keyboards
         this.bot.on('callback_query', (query) => this.handleCallbackQuery(query));
